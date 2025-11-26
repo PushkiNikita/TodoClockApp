@@ -2,7 +2,8 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: [
     '@pinia/nuxt',
-    '@vueuse/nuxt'
+    '@vueuse/nuxt',
+    '@nuxt/ui'
   ],
   postcss: {
     plugins: {
@@ -10,4 +11,5 @@ export default defineNuxtConfig({
       autoprefixer: {},
     },
   },
+  compatibilityDate: '2024-11-01'
 })

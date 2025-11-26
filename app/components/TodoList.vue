@@ -1,106 +1,349 @@
-<!-- app/components/TodoList.vue -->
 <template>
-  <div>
-    <h2 class="text-2xl font-bold mb-4">Список дел</h2>
-    
+  <div class="space-y-6">
     <!-- Форма добавления новой задачи -->
-    <div class="mb-4">
-      <input 
-        v-model="newTodo" 
-        @keyup.enter="addTodo"
-        placeholder="Добавьте новую задачу"
-        class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        ref="inputRef"
-      />
-      <button 
-        @click="addTodo"
-        :disabled="!newTodo.trim()"
-        class="mt-2 w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+    <UForm @submit="addTodo" class="space-y-4" :state="formState">
+      <UFormGroup 
+        label="Новая задача" 
+        :error="validationError"
+        :help="newTodo.length > 0 ? `${newTodo.length}/500 символов` : ''"
       >
+        <UInput
+          v-model="newTodo"
+          placeholder="Введите новую задачу..."
+          size="lg"
+          :ui="{ rounded: 'rounded-lg' }"
+          ref="inputRef"
+          @blur="clearValidationError"
+          :maxlength="500"
+        />
+      </UFormGroup>
+      
+      <UButton
+        type="submit"
+        :disabled="!newTodo.trim()"
+        class="w-full"
+        size="lg"
+        color="primary"
+        :loading="addingTodo"
+      >
+        <UIcon name="i-heroicons-plus" class="w-5 h-5" />
         Добавить задачу
-      </button>
-    </div>
-    
+      </UButton>
+    </UForm>
+
+    <!-- Уведомление об ошибке -->
+    <UAlert
+      v-if="errorMessage"
+      :title="errorMessage"
+      color="red"
+      variant="outline"
+      icon="i-heroicons-exclamation-triangle"
+      @close="clearError"
+      class="mt-4"
+    />
+
     <!-- Фильтры -->
-    <div class="flex space-x-2 mb-4">
-      <button 
+    <div class="flex gap-2 flex-wrap">
+      <UButton
         v-for="filter in filters"
         :key="filter.key"
         @click="currentFilter = filter.key"
-        :class="[
-          'px-3 py-1 rounded-md text-sm',
-          currentFilter === filter.key 
-            ? 'bg-blue-500 text-white' 
-            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-        ]"
+        :variant="currentFilter === filter.key ? 'solid' : 'outline'"
+        :color="currentFilter === filter.key ? 'primary' : 'gray'"
+        size="sm"
       >
         {{ filter.label }}
-      </button>
+        <UBadge 
+          v-if="filter.key === 'active' && todoStore.activeTodos.length > 0"
+          :label="todoStore.activeTodos.length.toString()"
+          color="primary"
+          variant="solid"
+          class="ml-1"
+        />
+        <UBadge 
+          v-if="filter.key === 'completed' && todoStore.completedTodos.length > 0"
+          :label="todoStore.completedTodos.length.toString()"
+          color="blue"
+          variant="solid"
+          class="ml-1"
+        />
+      </UButton>
     </div>
-    
+
     <!-- Список задач -->
-    <ul class="space-y-2" v-if="filteredTodos.length">
-      <li 
-        v-for="todo in filteredTodos" 
-        :key="todo.id"
-        class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md shadow-sm transition-all duration-200 hover:shadow-md"
-      >
-        <div class="flex items-center flex-1">
-          <input 
-            type="checkbox" 
-            :checked="todo.completed" 
-            @change="todoStore.toggleTodo(todo.id)"
-            class="mr-3 h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
-          />
-          <span 
-            :class="{ 
-              'line-through text-gray-500': todo.completed,
-              'text-gray-800': !todo.completed
-            }"
-            class="break-words flex-1"
-          >
-            {{ todo.text }}
-          </span>
-        </div>
-        <button 
-          @click="todoStore.removeTodo(todo.id)"
-          class="text-red-500 hover:text-red-700 p-1 rounded ml-2 flex-shrink-0"
+    <div class="space-y-3">
+      <TransitionGroup name="list" tag="div">
+        <UCard
+          v-for="todo in filteredTodos"
+          :key="todo.id"
+          class="transition-all duration-300 hover:shadow-md group"
+          :ui="{ 
+            body: { padding: 'p-4' },
+            background: todo.completed ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-900',
+            ring: todo.completed ? 'ring-1 ring-gray-200 dark:ring-gray-700' : 'ring-1 ring-gray-200 dark:ring-gray-700'
+          }"
         >
-          ✕
-        </button>
-      </li>
-    </ul>
-    
-    <!-- Сообщение о пустом списке -->
-    <div v-else class="text-center py-8 text-gray-500">
-      {{ emptyMessage }}
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+              <UCheckbox
+                :model-value="todo.completed"
+                @update:model-value="todoStore.toggleTodo(todo.id)"
+                :ui="{ rounded: 'rounded-full' }"
+                class="flex-shrink-0"
+              />
+              
+              <!-- Редактируемое поле -->
+              <div class="flex-1 min-w-0" v-if="editingTodoId === todo.id">
+                <UInput
+                  v-model="editingText"
+                  @blur="saveEdit(todo.id)"
+                  @keyup.enter="saveEdit(todo.id)"
+                  @keyup.escape="cancelEdit"
+                  size="sm"
+                  autofocus
+                  :maxlength="500"
+                  :ui="{ 
+                    wrapper: 'w-full',
+                    base: 'w-full'
+                  }"
+                />
+                <p class="text-xs text-gray-500 mt-1">
+                  {{ editingText.length }}/500 символов
+                </p>
+              </div>
+              
+              <!-- Отображение задачи -->
+              <div 
+                v-else
+                class="flex-1 min-w-0 cursor-pointer"
+                @dblclick="startEdit(todo)"
+              >
+                <span
+                  :class="[
+                    'break-words transition-all duration-200',
+                    todo.completed 
+                      ? 'line-through text-gray-500 dark:text-gray-400' 
+                      : 'text-gray-900 dark:text-white font-medium'
+                  ]"
+                >
+                  {{ todo.text }}
+                </span>
+                
+                <!-- Бейдж если задача длинная -->
+                <UBadge 
+                  v-if="todo.text.length > 100"
+                  label="Длинная"
+                  color="orange"
+                  variant="subtle"
+                  size="xs"
+                  class="ml-2"
+                />
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <UButton
+                v-if="editingTodoId !== todo.id"
+                @click="startEdit(todo)"
+                color="gray"
+                variant="ghost"
+                icon="i-heroicons-pencil"
+                :padded="false"
+                size="xs"
+                :ui="{ rounded: 'rounded-full' }"
+              />
+              
+              <UButton
+                @click="confirmDelete(todo)"
+                color="red"
+                variant="ghost"
+                icon="i-heroicons-trash"
+                :padded="false"
+                size="xs"
+                :ui="{ rounded: 'rounded-full' }"
+              />
+            </div>
+          </div>
+          
+          <!-- Мета-информация -->
+          <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1">
+                <UIcon name="i-heroicons-calendar" class="w-3 h-3" />
+                <span>{{ formatDate(todo.createdAt) }}</span>
+              </div>
+              
+              <UBadge 
+                v-if="todo.completed"
+                label="Выполнено"
+                color="green"
+                variant="subtle"
+                size="xs"
+              />
+            </div>
+            
+            <div class="text-xs opacity-70">
+              {{ todo.text.length }}/500
+            </div>
+          </div>
+        </UCard>
+      </TransitionGroup>
+
+      <!-- Сообщение о пустом списке -->
+      <UCard
+        v-if="filteredTodos.length === 0"
+        class="text-center py-8"
+      >
+        <UIcon 
+          :name="emptyMessageIcon" 
+          class="w-12 h-12 text-gray-400 mx-auto mb-4" 
+        />
+        <p class="text-gray-500 dark:text-gray-400 mb-2">{{ emptyMessage }}</p>
+        <p class="text-sm text-gray-400">{{ emptyMessageSubtitle }}</p>
+      </UCard>
     </div>
-    
-    <!-- Статистика -->
-    <div class="mt-4 p-3 bg-gray-100 rounded-md text-sm text-gray-600">
-      <p>Всего задач: {{ todoStore.todos.length }}</p>
-      <p>Выполнено: {{ todoStore.completedTodos.length }}</p>
-      <p>Активных: {{ todoStore.activeTodos.length }}</p>
-    </div>
-    
-    <!-- Кнопка очистки выполненных -->
-    <button 
-      v-if="todoStore.completedTodos.length > 0"
-      @click="clearCompleted"
-      class="mt-3 w-full bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600"
-    >
-      Очистить выполненные ({{ todoStore.completedTodos.length }})
-    </button>
+
+    <!-- Статистика и действия -->
+    <UCard v-if="todoStore.todos.length > 0">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Статистика</h3>
+          <UBadge 
+            :label="`${progress}%`"
+            :color="progressColor"
+            variant="subtle"
+          />
+        </div>
+      </template>
+      
+      <div class="grid grid-cols-3 gap-4 text-center">
+        <div>
+          <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
+            {{ todoStore.todos.length }}
+          </p>
+          <p class="text-sm text-gray-500">Всего</p>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-green-600 dark:text-green-400">
+            {{ todoStore.activeTodos.length }}
+          </p>
+          <p class="text-sm text-gray-500">Активных</p>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {{ todoStore.completedTodos.length }}
+          </p>
+          <p class="text-sm text-gray-500">Выполнено</p>
+        </div>
+      </div>
+
+      <!-- Прогресс-бар -->
+      <div class="mt-4 space-y-2">
+        <div class="flex justify-between text-sm text-gray-600 dark:text-gray-300">
+          <span>Прогресс выполнения</span>
+          <span>{{ progress }}%</span>
+        </div>
+        <UProgress 
+          :value="progress" 
+          size="md"
+          :color="progressColor"
+        />
+      </div>
+
+      <template #footer>
+        <div class="flex gap-2">
+          <UButton
+            v-if="todoStore.completedTodos.length > 0"
+            @click="clearCompleted"
+            color="red"
+            variant="outline"
+            class="flex-1"
+            icon="i-heroicons-trash"
+          >
+            Очистить выполненные ({{ todoStore.completedTodos.length }})
+          </UButton>
+          
+          <UButton
+            @click="exportTodos"
+            color="gray"
+            variant="ghost"
+            icon="i-heroicons-arrow-down-tray"
+          >
+            Экспорт
+          </UButton>
+        </div>
+      </template>
+    </UCard>
+
+    <!-- Модальное окно подтверждения удаления -->
+    <UModal v-model="showDeleteModal">
+      <UCard>
+        <template #header>
+          <div class="flex items-center gap-2">
+            <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-red-500" />
+            <h3 class="text-lg font-semibold">Подтверждение удаления</h3>
+          </div>
+        </template>
+
+        <p>Вы уверены, что хотите удалить задачу "{{ todoToDelete?.text }}"?</p>
+
+        <template #footer>
+          <div class="flex gap-2 justify-end">
+            <UButton
+              color="gray"
+              variant="ghost"
+              @click="showDeleteModal = false"
+            >
+              Отмена
+            </UButton>
+            <UButton
+              color="red"
+              @click="deleteTodo"
+            >
+              Удалить
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useTodoStore } from '~/stores/todo'
 import { useLocalStorage } from '@vueuse/core'
+import type { TodoItem } from '~/utils/validation'
 
 const todoStore = useTodoStore()
 const newTodo = ref('')
 const inputRef = ref<HTMLInputElement>()
+const addingTodo = ref(false)
+const validationError = ref('')
+const errorMessage = ref('')
+const editingTodoId = ref<number | null>(null)
+const editingText = ref('')
+const showDeleteModal = ref(false)
+const todoToDelete = ref<TodoItem | null>(null)
+
+// Создаем простую замену для тостов
+const showNotification = (title: string, color: 'green' | 'red' | 'blue' = 'green', icon?: string) => {
+  // Временное решение - выводим в консоль
+  console.log(`[${color.toUpperCase()}] ${title}`)
+  
+  // Можно добавить простые уведомления с помощью alert или другого UI
+  const notificationEl = document.createElement('div')
+  notificationEl.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+    color === 'green' ? 'bg-green-500 text-white' :
+    color === 'red' ? 'bg-red-500 text-white' :
+    'bg-blue-500 text-white'
+  }`
+  notificationEl.textContent = title
+  document.body.appendChild(notificationEl)
+  
+  setTimeout(() => {
+    document.body.removeChild(notificationEl)
+  }, 3000)
+}
 
 type FilterType = 'all' | 'active' | 'completed'
 const currentFilter = useLocalStorage<FilterType>('todo-filter', 'all')
@@ -110,6 +353,10 @@ const filters = [
   { key: 'active' as FilterType, label: 'Активные' },
   { key: 'completed' as FilterType, label: 'Выполненные' }
 ]
+
+const formState = computed(() => ({
+  text: newTodo.value
+}))
 
 const filteredTodos = computed(() => {
   switch (currentFilter.value) {
@@ -133,20 +380,174 @@ const emptyMessage = computed(() => {
   }
 })
 
-const addTodo = () => {
-  if (newTodo.value.trim()) {
-    todoStore.addTodo(newTodo.value.trim())
+const emptyMessageSubtitle = computed(() => {
+  switch (currentFilter.value) {
+    case 'active':
+      return 'Все задачи выполнены! 🎉'
+    case 'completed':
+      return 'Начните выполнять задачи'
+    default:
+      return 'Добавьте первую задачу выше'
+  }
+})
+
+const emptyMessageIcon = computed(() => {
+  switch (currentFilter.value) {
+    case 'active':
+      return 'i-heroicons-check-badge'
+    case 'completed':
+      return 'i-heroicons-clock'
+    default:
+      return 'i-heroicons-clipboard-document'
+  }
+})
+
+const progress = computed(() => {
+  if (todoStore.todos.length === 0) return 0
+  return Math.round((todoStore.completedTodos.length / todoStore.todos.length) * 100)
+})
+
+const progressColor = computed(() => {
+  if (progress.value === 0) return 'gray'
+  if (progress.value < 50) return 'yellow'
+  if (progress.value < 100) return 'blue'
+  return 'green'
+})
+
+const addTodo = async () => {
+  if (!newTodo.value.trim()) return
+  
+  addingTodo.value = true
+  validationError.value = ''
+  errorMessage.value = ''
+  
+  try {
+    await new Promise(resolve => setTimeout(resolve, 300))
+    await todoStore.addTodo(newTodo.value)
     newTodo.value = ''
-    // Фокусируемся обратно на input после добавления
-    if (inputRef.value) {
-      inputRef.value.focus()
-    }
+    showNotification('Задача добавлена', 'green')
+  } catch (error) {
+    const errorMessageText = (error as Error).message
+    validationError.value = errorMessageText
+    errorMessage.value = 'Ошибка при добавлении задачи'
+    showNotification(errorMessageText, 'red')
+  } finally {
+    addingTodo.value = false
+  }
+  
+  if (inputRef.value) {
+    inputRef.value.focus()
   }
 }
 
 const clearCompleted = () => {
+  const completedCount = todoStore.completedTodos.length
   todoStore.completedTodos.forEach(todo => {
     todoStore.removeTodo(todo.id)
   })
+  
+  showNotification(`Удалено ${completedCount} выполненных задач`, 'green')
 }
+
+const clearValidationError = () => {
+  validationError.value = ''
+}
+
+const clearError = () => {
+  errorMessage.value = ''
+  validationError.value = ''
+}
+
+const startEdit = (todo: TodoItem) => {
+  editingTodoId.value = todo.id
+  editingText.value = todo.text
+}
+
+const saveEdit = async (id: number) => {
+  if (editingText.value.trim() && editingText.value !== todoStore.todos.find(t => t.id === id)?.text) {
+    try {
+      await todoStore.updateTodoText(id, editingText.value)
+      showNotification('Задача обновлена', 'green')
+    } catch (error) {
+      errorMessage.value = (error as Error).message
+      showNotification((error as Error).message, 'red')
+      return
+    }
+  }
+  cancelEdit()
+}
+
+const cancelEdit = () => {
+  editingTodoId.value = null
+  editingText.value = ''
+}
+
+const confirmDelete = (todo: TodoItem) => {
+  todoToDelete.value = todo
+  showDeleteModal.value = true
+}
+
+const deleteTodo = () => {
+  if (todoToDelete.value) {
+    todoStore.removeTodo(todoToDelete.value.id)
+    showNotification('Задача удалена', 'green')
+  }
+  showDeleteModal.value = false
+  todoToDelete.value = null
+}
+
+const exportTodos = () => {
+  const data = {
+    todos: todoStore.todos,
+    exportedAt: new Date().toISOString(),
+    total: todoStore.todos.length,
+    completed: todoStore.completedTodos.length,
+    active: todoStore.activeTodos.length
+  }
+  
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `todos-${new Date().toISOString().split('T')[0]}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  
+  showNotification('Задачи экспортированы', 'blue')
+}
+
+const formatDate = (date: Date) => {
+  return new Date(date).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// Автоочистка ошибок через 5 секунд
+watch(errorMessage, (newValue) => {
+  if (newValue) {
+    setTimeout(() => {
+      errorMessage.value = ''
+    }, 5000)
+  }
+})
 </script>
+
+<style scoped>
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.3s ease;
+}
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+</style>
