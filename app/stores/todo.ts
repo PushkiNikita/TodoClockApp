@@ -1,5 +1,6 @@
 // app/stores/todo.ts
 import { defineStore } from 'pinia'
+import { useLocalStorage } from '@vueuse/core'
 
 export interface TodoItem {
   id: number
@@ -9,8 +10,9 @@ export interface TodoItem {
 }
 
 export const useTodoStore = defineStore('todo', () => {
-  const todos = ref<TodoItem[]>([])
-  const nextId = ref(1)
+  // Используем localStorage для сохранения задач
+  const todos = useLocalStorage<TodoItem[]>('todos', [])
+  const nextId = useLocalStorage<number>('next-todo-id', 1)
 
   const addTodo = (text: string) => {
     const newTodo: TodoItem = {
@@ -45,7 +47,7 @@ export const useTodoStore = defineStore('todo', () => {
   )
 
   return {
-    todos,
+    todos: readonly(todos), // делаем доступным только для чтения
     addTodo,
     removeTodo,
     toggleTodo,

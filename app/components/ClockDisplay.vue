@@ -1,3 +1,4 @@
+<!-- app/components/ClockDisplay.vue -->
 <template>
   <div class="text-center">
     <h2 class="text-2xl font-bold mb-4">Текущее время</h2>
@@ -7,36 +8,35 @@
     <div class="mt-4 text-lg text-gray-600">
       {{ currentDate }}
     </div>
+    <div class="mt-2 text-sm text-gray-500">
+      Обновлено: {{ lastUpdate }}
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { useNow, useTimestamp } from '@vueuse/core'
 
-const currentTime = ref('')
-const currentDate = ref('')
+// Используем useNow для реактивного текущего времени
+const now = useNow()
 
-const updateTime = () => {
-  const now = new Date()
-  currentTime.value = now.toLocaleTimeString('ru-RU')
-  currentDate.value = now.toLocaleDateString('ru-RU', {
+// Используем useTimestamp для отслеживания времени обновления
+const timestamp = useTimestamp()
+
+const currentTime = computed(() => {
+  return now.value.toLocaleTimeString('ru-RU')
+})
+
+const currentDate = computed(() => {
+  return now.value.toLocaleDateString('ru-RU', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   })
-}
-
-let interval: number | null = null
-
-onMounted(() => {
-  updateTime()
-  interval = window.setInterval(updateTime, 1000)
 })
 
-onUnmounted(() => {
-  if (interval !== null) {
-    clearInterval(interval)
-  }
+const lastUpdate = computed(() => {
+  return new Date(timestamp.value).toLocaleTimeString('ru-RU')
 })
 </script>
