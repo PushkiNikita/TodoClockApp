@@ -1,24 +1,31 @@
 <style>
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 </style>
 
 <template>
-  <div class="container mx-auto p-8 bg-gray-50 min-h-screen">
-    <h1 class="text-4xl font-bold mb-8 text-blue-600 text-center">
-      Мои часы и задачи
-    </h1>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="border-2 border-blue-200 rounded-lg p-6 bg-white shadow-lg">
-        <ClockDisplay />
-      </div>
-      <div class="border-2 border-green-200 rounded-lg p-6 bg-white shadow-lg">
-        <TodoList />
+  <div class="min-h-screen bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+      <h1 class="text-3xl font-bold text-gray-900 mb-8 text-center">
+        Тест стилей Tailwind
+      </h1>
+      
+      <TestStyles />
+      
+      <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-xl font-semibold mb-4 text-gray-800">Текущее время</h2>
+          <ClockDisplay />
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-xl font-semibold mb-4 text-gray-800">Список дел</h2>
+          <TodoList />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-</script>
+<script setup lang="ts"></script>

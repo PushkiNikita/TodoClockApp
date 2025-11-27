@@ -1,0 +1,7 @@
+dist
+node_modules
+.nuxt
+.output
+coverage
+*.local
+.DS_Store

@@ -7,15 +7,15 @@
         :error="validationError"
         :help="newTodo.length > 0 ? `${newTodo.length}/500 символов` : ''"
       >
-        <UInput
-          v-model="newTodo"
-          placeholder="Введите новую задачу..."
-          size="lg"
-          :ui="{ rounded: 'rounded-lg' }"
-          ref="inputRef"
-          @blur="clearValidationError"
-          :maxlength="500"
-        />
+    <UInput
+      v-model="newTodo"
+      placeholder="Введите новую задачу..."
+      size="lg"
+      class="rounded-lg"
+      ref="inputRef"
+      @blur="clearValidationError"
+      :maxlength="500"
+    />
       </UFormGroup>
       
       <UButton
@@ -23,7 +23,7 @@
         :disabled="!newTodo.trim()"
         class="w-full"
         size="lg"
-        color="primary"
+        variant="solid"
         :loading="addingTodo"
       >
         <UIcon name="i-heroicons-plus" class="w-5 h-5" />
@@ -35,7 +35,6 @@
     <UAlert
       v-if="errorMessage"
       :title="errorMessage"
-      color="red"
       variant="outline"
       icon="i-heroicons-exclamation-triangle"
       @close="clearError"
@@ -49,7 +48,7 @@
         :key="filter.key"
         @click="currentFilter = filter.key"
         :variant="currentFilter === filter.key ? 'solid' : 'outline'"
-        :color="currentFilter === filter.key ? 'primary' : 'gray'"
+        :color="currentFilter === filter.key ? 'primary' : 'neutral'"
         size="sm"
       >
         {{ filter.label }}
@@ -63,7 +62,7 @@
         <UBadge 
           v-if="filter.key === 'completed' && todoStore.completedTodos.length > 0"
           :label="todoStore.completedTodos.length.toString()"
-          color="blue"
+          color="primary"
           variant="solid"
           class="ml-1"
         />
@@ -77,19 +76,13 @@
           v-for="todo in filteredTodos"
           :key="todo.id"
           class="transition-all duration-300 hover:shadow-md group"
-          :ui="{ 
-            body: { padding: 'p-4' },
-            background: todo.completed ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-900',
-            ring: todo.completed ? 'ring-1 ring-gray-200 dark:ring-gray-700' : 'ring-1 ring-gray-200 dark:ring-gray-700'
-          }"
+          :class="todo.completed ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-900'"
         >
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between p-4">
             <div class="flex items-center gap-3 flex-1 min-w-0">
               <UCheckbox
                 :model-value="todo.completed"
                 @update:model-value="todoStore.toggleTodo(todo.id)"
-                :ui="{ rounded: 'rounded-full' }"
-                class="flex-shrink-0"
               />
               
               <!-- Редактируемое поле -->
@@ -102,10 +95,6 @@
                   size="sm"
                   autofocus
                   :maxlength="500"
-                  :ui="{ 
-                    wrapper: 'w-full',
-                    base: 'w-full'
-                  }"
                 />
                 <p class="text-xs text-gray-500 mt-1">
                   {{ editingText.length }}/500 символов
@@ -120,7 +109,7 @@
               >
                 <span
                   :class="[
-                    'break-words transition-all duration-200',
+                    'wrap-break-word transition-all duration-200',
                     todo.completed 
                       ? 'line-through text-gray-500 dark:text-gray-400' 
                       : 'text-gray-900 dark:text-white font-medium'
@@ -133,7 +122,7 @@
                 <UBadge 
                   v-if="todo.text.length > 100"
                   label="Длинная"
-                  color="orange"
+                  color="warning"
                   variant="subtle"
                   size="xs"
                   class="ml-2"
@@ -141,32 +130,30 @@
               </div>
             </div>
             
-            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
               <UButton
                 v-if="editingTodoId !== todo.id"
                 @click="startEdit(todo)"
-                color="gray"
+                color="neutral"
                 variant="ghost"
                 icon="i-heroicons-pencil"
                 :padded="false"
                 size="xs"
-                :ui="{ rounded: 'rounded-full' }"
               />
               
               <UButton
                 @click="confirmDelete(todo)"
-                color="red"
+                color="neutral"
                 variant="ghost"
                 icon="i-heroicons-trash"
                 :padded="false"
                 size="xs"
-                :ui="{ rounded: 'rounded-full' }"
               />
             </div>
           </div>
           
           <!-- Мета-информация -->
-          <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 px-4 pb-4">
             <div class="flex items-center gap-2">
               <div class="flex items-center gap-1">
                 <UIcon name="i-heroicons-calendar" class="w-3 h-3" />
@@ -176,7 +163,7 @@
               <UBadge 
                 v-if="todo.completed"
                 label="Выполнено"
-                color="green"
+                color="success"
                 variant="subtle"
                 size="xs"
               />
@@ -210,7 +197,7 @@
           <h3 class="font-semibold">Статистика</h3>
           <UBadge 
             :label="`${progress}%`"
-            :color="progressColor"
+            :color="progressBadgeColor"
             variant="subtle"
           />
         </div>
@@ -255,7 +242,6 @@
           <UButton
             v-if="todoStore.completedTodos.length > 0"
             @click="clearCompleted"
-            color="red"
             variant="outline"
             class="flex-1"
             icon="i-heroicons-trash"
@@ -265,7 +251,7 @@
           
           <UButton
             @click="exportTodos"
-            color="gray"
+            color="neutral"
             variant="ghost"
             icon="i-heroicons-arrow-down-tray"
           >
@@ -290,14 +276,14 @@
         <template #footer>
           <div class="flex gap-2 justify-end">
             <UButton
-              color="gray"
+              color="neutral"
               variant="ghost"
               @click="showDeleteModal = false"
             >
               Отмена
             </UButton>
             <UButton
-              color="red"
+              variant="solid"
               @click="deleteTodo"
             >
               Удалить
@@ -324,26 +310,6 @@ const editingTodoId = ref<number | null>(null)
 const editingText = ref('')
 const showDeleteModal = ref(false)
 const todoToDelete = ref<TodoItem | null>(null)
-
-// Создаем простую замену для тостов
-const showNotification = (title: string, color: 'green' | 'red' | 'blue' = 'green', icon?: string) => {
-  // Временное решение - выводим в консоль
-  console.log(`[${color.toUpperCase()}] ${title}`)
-  
-  // Можно добавить простые уведомления с помощью alert или другого UI
-  const notificationEl = document.createElement('div')
-  notificationEl.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-    color === 'green' ? 'bg-green-500 text-white' :
-    color === 'red' ? 'bg-red-500 text-white' :
-    'bg-blue-500 text-white'
-  }`
-  notificationEl.textContent = title
-  document.body.appendChild(notificationEl)
-  
-  setTimeout(() => {
-    document.body.removeChild(notificationEl)
-  }, 3000)
-}
 
 type FilterType = 'all' | 'active' | 'completed'
 const currentFilter = useLocalStorage<FilterType>('todo-filter', 'all')
@@ -408,11 +374,23 @@ const progress = computed(() => {
 })
 
 const progressColor = computed(() => {
-  if (progress.value === 0) return 'gray'
-  if (progress.value < 50) return 'yellow'
-  if (progress.value < 100) return 'blue'
-  return 'green'
+  if (progress.value === 0) return 'neutral'
+  if (progress.value < 50) return 'warning'
+  if (progress.value < 100) return 'primary'
+  return 'success'
 })
+
+const progressBadgeColor = computed(() => {
+  if (progress.value === 0) return 'neutral'
+  if (progress.value < 50) return 'warning'
+  if (progress.value < 100) return 'primary'
+  return 'success'
+})
+
+// Создаем простую замену для тостов
+const showNotification = (title: string, type: 'success' | 'error' | 'info' = 'success') => {
+  console.log(`[${type.toUpperCase()}] ${title}`)
+}
 
 const addTodo = async () => {
   if (!newTodo.value.trim()) return
@@ -425,12 +403,12 @@ const addTodo = async () => {
     await new Promise(resolve => setTimeout(resolve, 300))
     await todoStore.addTodo(newTodo.value)
     newTodo.value = ''
-    showNotification('Задача добавлена', 'green')
+    showNotification('Задача добавлена', 'success')
   } catch (error) {
     const errorMessageText = (error as Error).message
     validationError.value = errorMessageText
     errorMessage.value = 'Ошибка при добавлении задачи'
-    showNotification(errorMessageText, 'red')
+    showNotification(errorMessageText, 'error')
   } finally {
     addingTodo.value = false
   }
@@ -446,7 +424,7 @@ const clearCompleted = () => {
     todoStore.removeTodo(todo.id)
   })
   
-  showNotification(`Удалено ${completedCount} выполненных задач`, 'green')
+  showNotification(`Удалено ${completedCount} выполненных задач`, 'success')
 }
 
 const clearValidationError = () => {
@@ -467,10 +445,10 @@ const saveEdit = async (id: number) => {
   if (editingText.value.trim() && editingText.value !== todoStore.todos.find(t => t.id === id)?.text) {
     try {
       await todoStore.updateTodoText(id, editingText.value)
-      showNotification('Задача обновлена', 'green')
+      showNotification('Задача обновлена', 'success')
     } catch (error) {
       errorMessage.value = (error as Error).message
-      showNotification((error as Error).message, 'red')
+      showNotification((error as Error).message, 'error')
       return
     }
   }
@@ -490,7 +468,7 @@ const confirmDelete = (todo: TodoItem) => {
 const deleteTodo = () => {
   if (todoToDelete.value) {
     todoStore.removeTodo(todoToDelete.value.id)
-    showNotification('Задача удалена', 'green')
+    showNotification('Задача удалена', 'success')
   }
   showDeleteModal.value = false
   todoToDelete.value = null
@@ -515,7 +493,7 @@ const exportTodos = () => {
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
   
-  showNotification('Задачи экспортированы', 'blue')
+  showNotification('Задачи экспортированы', 'info')
 }
 
 const formatDate = (date: Date) => {
